@@ -2,7 +2,6 @@ import subprocess
 import sys
 from pathlib import Path
 import os
-
 def check_and_install_packages(package_names):
     for package in package_names:
         try:
@@ -13,10 +12,19 @@ def check_and_install_packages(package_names):
             except subprocess.CalledProcessError as e:
                 print(f"Failed to install {package} with normal and user flags due to {e}")
                 sys.exit(1)
-
-required_packages = ["rich", "pyfiglet", "questionary", "tqdm", "alive-progress", "PyQt6", "colorama", "termcolor", "art", "asciimatics"]
+def check_and_install_pyqt():
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "PyQt6"])
+    except subprocess.CalledProcessError:
+        print("PyQt6 installation failed. Attempting to install PyQt5.")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "PyQt5"])
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to install PyQt5 as a backup due to {e}")
+            sys.exit(1)
+required_packages = ["rich", "pyfiglet", "questionary", "tqdm", "alive-progress", "colorama", "termcolor", "art", "asciimatics"]
 check_and_install_packages(required_packages)
-
+check_and_install_pyqt()
 import questionary
 from tqdm import tqdm
 from pyfiglet import Figlet
@@ -25,8 +33,12 @@ from rich.markdown import Markdown
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
 from alive_progress import alive_bar
 from art import *
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel
-from PyQt6.QtCore import QTimer
+try:
+    from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel
+    from PyQt6.QtCore import QTimer
+except ImportError:
+    from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel
+    from PyQt5.QtCore import QTimer
 from termcolor import colored
 from colorama import Fore, Back, Style
 
