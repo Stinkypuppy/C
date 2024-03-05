@@ -3,7 +3,6 @@ import sys
 from pathlib import Path
 import os
 
-# Dynamic dependency installation
 required_packages = ["rich", "pyfiglet", "questionary", "tqdm", "alive-progress", "tkinter", "colorama", "termcolor", "curses", "art", "asciimatics"]
 subprocess.check_call([sys.executable, "-m", "pip", "install"] + required_packages)
 
@@ -44,8 +43,16 @@ def install_dependencies():
 
 install_dependencies()
 
+def detect_split_files(directory):
+    files = Path(directory).glob('*.part*')
+    base_filenames = set()
+    for file in files:
+        base_name = ".".join(str(file).split('.')[:-1])
+        base_filenames.add(base_name)
+    return list(base_filenames)
+
 def split_file(filename, size):
-    size = int(size) * 1024 * 1024  # Convert size to bytes
+    size = int(size) * 1024 * 1024
     part_num = 0
     with open(filename, 'rb') as src:
         chunk = src.read(size)
@@ -60,12 +67,18 @@ def split_file(filename, size):
                 chunk = src.read(size)
     console.print(f"[bold magenta]File split into {part_num} parts.[/bold magenta]")
 
-def join_files(base_filename, num_parts):
+def join_files(base_filename):
+    parts = sorted(Path('.').glob(f'{base_filename}.part*'), key=lambda x: int(x.suffix.split('part')[1]))
+    num_parts = len(parts)
+    if num_parts == 0:
+        console.print("[bold red]No split files provided.[/bold red]")
+        return
+
     with Progress(SpinnerColumn(), BarColumn(), TextColumn("[progress.description]{task.description}"), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"), console=console) as progress:
         task = progress.add_task("[cyan]Joining files...", total=num_parts)
         with open(f"{base_filename}_joined", 'wb') as dst:
-            for i in range(1, num_parts + 1):
-                with open(f"{base_filename}.part{i}", 'rb') as src:
+            for part in parts:
+                with open(part, 'rb') as src:
                     data = src.read()
                     dst.write(data)
                     progress.advance(task)
@@ -73,7 +86,7 @@ def join_files(base_filename, num_parts):
 
 def main():
     Screen.wrapper(custom_title_screen)
-    console.print(Markdown("# 🌌 [blink]File Split and Join Tool [/blink] 🌌"))
+    console.print(Markdown("# [blink]File Split and Join Tool [/blink] "))
     console.print(Markdown("### [italic magenta]Made and Designed by Guinness Shepherd[/italic magenta]"))
 
     action = questionary.select(
@@ -86,9 +99,9 @@ def main():
         size = questionary.text("Enter the size of each part (in MB):").ask()
         split_file(filename, size)
     elif action == "Join files":
-        base_filename = questionary.text("Enter the base filename (without .partN):").ask()
-        num_parts = int(questionary.text("How many parts are there?").ask())
-        join_files(base_filename, num_parts)
+        detected_files = detect_split_files('.')
+        base_filename = questionary.select("Select the base filename to join:", choices=detected_files).ask()
+        join_files(base_filename)
 
 if __name__ == "__main__":
     main()
